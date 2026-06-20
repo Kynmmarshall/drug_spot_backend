@@ -7,7 +7,20 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "username", "email", "phone", "password", "bio", "avatar_path", "user_type"]
+        fields = [
+            "id", "username", "email", "phone",
+            "password", "bio", "avatar_path", "user_type",
+        ]
+
+    def validate_username(self, value):
+        if User.objects.filter(username__iexact=value).exists():
+            raise serializers.ValidationError("A user with that username already exists.")
+        return value
+
+    def validate_email(self, value):
+        if value and User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError("A user with that email already exists.")
+        return value
 
     def create(self, validated_data):
         password = validated_data.pop("password")
@@ -25,5 +38,13 @@ class LoginSerializer(serializers.Serializer):
 class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["username", "email", "phone", "bio", "avatar_path", "user_type"]
-        read_only_fields = ["username", "user_type"]
+        fields = [
+            "id", "username", "email", "phone",
+            "bio", "avatar_path", "user_type",
+        ]
+        read_only_fields = ["id", "username", "user_type"]
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True, min_length=6)
