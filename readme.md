@@ -1,6 +1,6 @@
 # Drug Spot Backend
 
-REST API for the Drug Spot mobile application, built with **Django REST Framework** and **PostgreSQL**.
+REST API for the Drug Spot mobile application, built with **Django REST Framework** and **PostgreSQL**
 
 ## Project Structure
 
