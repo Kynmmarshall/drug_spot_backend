@@ -13,6 +13,7 @@ DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in ("true", "1")
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "*").split(",")
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -22,10 +23,12 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
+    "channels",
     "users",
     "pharmacies",
     "medicines",
     "medicine_requests",
+    "conversations",
 ]
 
 MIDDLEWARE = [
@@ -58,6 +61,13 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "drug_spot.wsgi.application"
+ASGI_APPLICATION = "drug_spot.asgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+}
 
 DATABASES = {
     "default": {

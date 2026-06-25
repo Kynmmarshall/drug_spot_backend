@@ -5,6 +5,7 @@ from pharmacies.models import Pharmacy
 class Medicine(models.Model):
     name = models.CharField(max_length=100)
     price = models.FloatField()
+    image = models.ImageField(upload_to="medicines/", blank=True)
     pharmacy = models.ForeignKey(
         Pharmacy,
         on_delete=models.CASCADE,

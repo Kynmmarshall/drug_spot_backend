@@ -1,18 +1,18 @@
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, parser_classes
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 
 from .models import Medicine
 from .serializers import MedicineSerializer, MedicineCreateSerializer
-from .permissions import IsPharmacyOwner
 
 
 @api_view(["GET", "POST"])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def medicine_list(request):
     if request.method == "GET":
         medicines = Medicine.objects.all()
-        serializer = MedicineSerializer(medicines, many=True)
+        serializer = MedicineSerializer(medicines, many=True, context={"request": request})
         return Response(serializer.data)
 
     if not request.user.is_authenticated or request.user.user_type != "pharmacy":
@@ -25,10 +25,14 @@ def medicine_list(request):
     serializer = MedicineCreateSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     medicine = serializer.save(pharmacy=pharmacy)
-    return Response(MedicineSerializer(medicine).data, status=status.HTTP_201_CREATED)
+    return Response(
+        MedicineSerializer(medicine, context={"request": request}).data,
+        status=status.HTTP_201_CREATED,
+    )
 
 
 @api_view(["GET", "PUT", "DELETE"])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def medicine_detail(request, pk):
     try:
         medicine = Medicine.objects.select_related("pharmacy").get(pk=pk)
@@ -36,7 +40,7 @@ def medicine_detail(request, pk):
         return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == "GET":
-        serializer = MedicineSerializer(medicine)
+        serializer = MedicineSerializer(medicine, context={"request": request})
         return Response(serializer.data)
 
     if not request.user.is_authenticated or request.user.user_type != "pharmacy":
@@ -46,10 +50,12 @@ def medicine_detail(request, pk):
         return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
 
     if request.method == "PUT":
-        serializer = MedicineCreateSerializer(medicine, data=request.data)
+        serializer = MedicineCreateSerializer(medicine, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response({"success": True})
+        return Response(
+            MedicineSerializer(medicine, context={"request": request}).data
+        )
 
     medicine.delete()
     return Response({"success": True})
@@ -58,5 +64,5 @@ def medicine_detail(request, pk):
 @api_view(["GET"])
 def medicines_by_pharmacy(request, pk):
     medicines = Medicine.objects.filter(pharmacy_id=pk)
-    serializer = MedicineSerializer(medicines, many=True)
+    serializer = MedicineSerializer(medicines, many=True, context={"request": request})
     return Response(serializer.data)
