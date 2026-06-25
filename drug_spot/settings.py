@@ -107,6 +107,8 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
+APPEND_SLASH = False
+
 CORS_ALLOW_ALL_ORIGINS = True
 
 LANGUAGE_CODE = "en-us"
