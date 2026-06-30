@@ -1,10 +1,10 @@
 from django.db import models
+from pharmacies.models import Pharmacy
 
 
 class Medicine(models.Model):
     name = models.CharField(max_length=100)
     price = models.FloatField()
-    image = models.ImageField(upload_to="medicines/", blank=True)
     pharmacy = models.ForeignKey(
         Pharmacy,
         on_delete=models.CASCADE,
@@ -12,7 +12,10 @@ class Medicine(models.Model):
     )
 
     class Meta:
-        db_table = "medicine_requests"
+        db_table = "medicines"
+        indexes = [
+            models.Index(fields=["name"], name="idx_medicine_name"),
+        ]
 
     def __str__(self):
-        return f"{self.username} — {self.medicine_name}"
+        return f"{self.name} - {self.pharmacy.name}"
