@@ -29,12 +29,21 @@ def pharmacy_list(request):
     return Response(PharmacySerializer(serializer.instance).data, status=status.HTTP_201_CREATED)
 
 
-@api_view(["GET"])
+@api_view(["GET", "PUT"])
 def pharmacy_detail(request, pk):
     try:
         pharmacy = Pharmacy.objects.get(pk=pk)
     except Pharmacy.DoesNotExist:
         return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    serializer = PharmacySerializer(pharmacy)
-    return Response(serializer.data)
+    if request.method == "GET":
+        serializer = PharmacySerializer(pharmacy)
+        return Response(serializer.data)
+
+    if not request.user.is_authenticated or pharmacy.user_id != request.user.id:
+        return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+    serializer = CreatePharmacySerializer(pharmacy, data=request.data, partial=True)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(PharmacySerializer(pharmacy).data)

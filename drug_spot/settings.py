@@ -13,6 +13,7 @@ DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in ("true", "1")
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "*").split(",")
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -22,10 +23,13 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
+    "channels",
     "users",
     "pharmacies",
     "medicines",
     "medicine_requests",
+    "conversations",
+    "notifications",
 ]
 
 MIDDLEWARE = [
@@ -58,6 +62,13 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "drug_spot.wsgi.application"
+ASGI_APPLICATION = "drug_spot.asgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+}
 
 DATABASES = {
     "default": {
@@ -96,6 +107,8 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
+APPEND_SLASH = False
+
 CORS_ALLOW_ALL_ORIGINS = True
 
 APPEND_SLASH = False
@@ -112,3 +125,5 @@ MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+FIREBASE_CREDENTIALS_PATH = os.environ.get("FIREBASE_CREDENTIALS_PATH")
