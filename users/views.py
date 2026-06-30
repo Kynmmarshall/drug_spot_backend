@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from django.contrib.auth import authenticate
+from django.utils import timezone
 
 from .serializers import (
     RegisterSerializer,
@@ -12,6 +13,7 @@ from .serializers import (
     ProfileSerializer,
     ChangePasswordSerializer,
 )
+from .email_utils import send_verification_email
 
 
 def _token_pair(user):
@@ -28,6 +30,7 @@ def _token_pair(user):
             "bio": user.bio,
             "avatar_path": user.avatar_path,
             "user_type": user.user_type,
+            "is_email_verified": user.is_email_verified,
         },
     }
 
@@ -41,11 +44,20 @@ def register(request):
     POST /api/register
     Body: { username, email, phone, password, user_type, bio?, avatar_path? }
     Returns: { access, refresh, user }
+
+    After registration the account is created but is_email_verified=False.
+    A verification OTP is sent automatically to the provided email.
     """
     serializer = RegisterSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     user = serializer.save()
-    return Response(_token_pair(user), status=status.HTTP_201_CREATED)
+
+    # Fire verification email – non-blocking (we still return 201 even if it fails)
+    email_sent = send_verification_email(user)
+
+    data = _token_pair(user)
+    data["email_sent"] = email_sent
+    return Response(data, status=status.HTTP_201_CREATED)
 
 
 # ─── Login ───────────────────────────────────────────────────────────────────
@@ -57,6 +69,10 @@ def login(request):
     POST /api/login
     Body: { username, password }
     Returns: { access, refresh, user }
+
+    If the account's email is not yet verified the response still succeeds
+    but user.is_email_verified will be False so the Flutter app can redirect
+    to the verification screen.
     """
     serializer = LoginSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -78,6 +94,96 @@ def login(request):
         )
 
     return Response(_token_pair(user))
+
+
+# ─── Send / Resend Verification Email ────────────────────────────────────────
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def send_verification(request):
+    """
+    POST /api/send-verification
+    Requires: Bearer token (user must be logged in)
+
+    Generates a new OTP and sends a verification email.
+    Returns: { success: true, email: "...@..." }
+    """
+    user = request.user
+
+    if user.is_email_verified:
+        return Response(
+            {"error": "Email is already verified"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not user.email:
+        return Response(
+            {"error": "No email address associated with this account"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    sent = send_verification_email(user)
+    if not sent:
+        return Response(
+            {"error": "Failed to send verification email. Please try again later."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    # Mask the email for privacy: e.g. j***@example.com
+    parts = user.email.split("@")
+    masked = parts[0][0] + "***@" + parts[1] if len(parts) == 2 else user.email
+
+    return Response({"success": True, "email": masked})
+
+
+# ─── Verify Email ─────────────────────────────────────────────────────────────
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def verify_email(request):
+    """
+    POST /api/verify-email
+    Body: { otp: "123456" }
+    Requires: Bearer token
+
+    Returns: { success: true, user: { ..., is_email_verified: true } }
+    """
+    user = request.user
+
+    if user.is_email_verified:
+        return Response(
+            {"error": "Email is already verified"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    otp = request.data.get("otp", "").strip()
+    if not otp:
+        return Response(
+            {"error": "OTP is required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Check expiry
+    if not user.email_otp_expires_at or timezone.now() > user.email_otp_expires_at:
+        return Response(
+            {"error": "OTP has expired. Please request a new one."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Check OTP match
+    if otp != user.email_otp:
+        return Response(
+            {"error": "Invalid OTP"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Mark verified and clear OTP fields
+    user.is_email_verified = True
+    user.email_otp = ""
+    user.email_otp_expires_at = None
+    user.save(update_fields=["is_email_verified", "email_otp", "email_otp_expires_at"])
+
+    return Response({"success": True, "user": _token_pair(user)["user"]})
 
 
 # ─── Token Refresh ───────────────────────────────────────────────────────────
@@ -110,11 +216,8 @@ def token_refresh(request):
 def logout(request):
     """
     POST /api/logout
-    Body: { refresh }   – blacklists the refresh token (requires simplejwt blacklist app)
+    Body: { refresh }
     Returns: { success: true }
-
-    If token blacklisting is not enabled the endpoint still returns 200
-    so the Flutter client can safely delete its stored tokens.
     """
     refresh_token = request.data.get("refresh")
     if refresh_token:
@@ -122,7 +225,6 @@ def logout(request):
             token = RefreshToken(refresh_token)
             token.blacklist()
         except Exception:
-            # Blacklist app not installed or token already invalid – ignore
             pass
     return Response({"success": True})
 
@@ -168,5 +270,4 @@ def change_password(request):
 
     user.set_password(serializer.validated_data["new_password"])
     user.save()
-    # Issue new tokens so the client doesn't get logged out
     return Response({"success": True, **_token_pair(user)})

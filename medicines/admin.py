@@ -1,8 +1,7 @@
 from django.contrib import admin
-from .models import Medicine
+from .models import User
 
-
-@admin.register(Medicine)
+admin.site.register(User)
 class MedicineAdmin(admin.ModelAdmin):
     list_display = ["name", "price", "pharmacy"]
     list_filter = ["pharmacy"]

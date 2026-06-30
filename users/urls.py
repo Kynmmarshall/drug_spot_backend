@@ -8,4 +8,8 @@ urlpatterns = [
     path("logout", views.logout),
     path("profile", views.profile),
     path("change-password", views.change_password),
+
+    # ── Email verification ──────────────────────────────────────────────────
+    path("send-verification", views.send_verification),
+    path("verify-email", views.verify_email),
 ]

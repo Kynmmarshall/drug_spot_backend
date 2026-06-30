@@ -1,21 +1,15 @@
 from django.db import models
-from pharmacies.models import Pharmacy
 
-
-class Medicine(models.Model):
-    name = models.CharField(max_length=100)
-    price = models.FloatField()
-    pharmacy = models.ForeignKey(
-        Pharmacy,
-        on_delete=models.CASCADE,
-        related_name="medicines",
-    )
+class MedicineRequest(models.Model):
+    username = models.CharField(max_length=150)
+    contact = models.CharField(max_length=100)
+    medicine_name = models.CharField(max_length=255)
+    avatar_path = models.CharField(max_length=255, blank=True)
+    use_asset = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = "medicines"
-        indexes = [
-            models.Index(fields=["name"], name="idx_medicine_name"),
-        ]
+        db_table = "medicine_requests"
 
     def __str__(self):
-        return f"{self.name} - {self.pharmacy.name}"
+        return f"{self.username} — {self.medicine_name}"
