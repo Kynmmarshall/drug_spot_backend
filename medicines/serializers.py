@@ -8,7 +8,7 @@ class MedicineSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Medicine
-        fields = ["id", "name", "price", "pharmacy_id", "image_url"]
+        fields = ["id", "name", "price", "description", "pharmacy_id", "image_url"]
 
     def get_image_url(self, obj):
         if obj.image and hasattr(obj.image, "url"):
@@ -22,4 +22,4 @@ class MedicineSerializer(serializers.ModelSerializer):
 class MedicineCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Medicine
-        fields = ["id", "name", "price", "image"]
+        fields = ["id", "name", "price", "description", "image"]
