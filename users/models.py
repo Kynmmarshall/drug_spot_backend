@@ -11,6 +11,7 @@ class User(AbstractUser):
     bio = models.TextField(blank=True)
     avatar_path = models.CharField(max_length=255, blank=True)
     user_type = models.CharField(max_length=20, choices=UserType.choices)
+    last_seen = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "users"
